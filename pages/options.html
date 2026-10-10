@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Opened directly (not inside the main page)? Go to the main address and show this page there -->
+  <script>
+  (function () {
+    try {
+      if (window.top !== window.self) return;
+      var root = location.pathname.replace(/(\/pages)?\/[^/]*$/, "/");
+      var rel = location.pathname.slice(root.length) + location.search + location.hash;
+      sessionStorage.setItem("gs-current-page", rel || "pages/dashboard.html");
+      location.replace(root);
+    } catch (e) {}
+  })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#14203a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Grading">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <!-- Very old browsers can't run the system: show a clear message instead of a blank page -->
+  <script>
+  (function () {
+    var ok = true;
+    try { new Function("var a = {}; return a?.b ?? 1")(); } catch (e) { ok = false; }
+    if (!("noModule" in document.createElement("script"))) ok = false;
+    if (!ok) {
+      document.addEventListener("DOMContentLoaded", function () {
+        document.body.innerHTML = '<div style="max-width:520px;margin:12vh auto;padding:24px;font-family:Arial,sans-serif;color:#1f2a44">' +
+          '<h1 style="font-size:22px">Please update your browser</h1>' +
+          '<p>The grading system needs a recent browser: Chrome, Edge, Firefox, Safari (iPhone/iPad with iOS 14 or newer) or Samsung Internet.</p>' +
+          '<p>Update your browser, or open the system on another device.</p></div>';
+      });
+    }
+  })();
+  </script>
+  <title>Setup and Options | AcadLink Grading System</title>
+  <!-- Apply the remembered role before first paint so menu items don't flicker (security is in Firestore rules) -->
+  <script>try{var r=localStorage.getItem("gs-role");if(r)document.documentElement.dataset.role=r;}catch(e){}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Tailwind utilities (tw- prefix), pre-built: see tailwind.config.js -->
+  <link href="../css/tailwind.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <!-- Prefetch other pages on hover so navigation feels instant -->
+  <script type="speculationrules">
+  { "prefetch": [ { "where": { "href_matches": "/*" }, "eagerness": "moderate" } ] }
+  </script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="offcanvas-lg offcanvas-start sidebar" tabindex="-1" id="sidebar" aria-label="Main navigation">
+      <div class="sidebar-inner">
+        <div class="d-flex align-items-start justify-content-between">
+          <a class="sidebar-brand" href="dashboard.html">
+            <span class="brand-seal has-logo is-default" id="brandSeal" aria-hidden="true"><img src="../icons/acadlink-mark.png" alt=""></span>
+            <span class="tw-min-w-0"><span class="brand-name d-block" id="brandName">AcadLink</span><span class="brand-sub d-block text-truncate" id="brandSub">Grading System</span></span>
+          </a>
+          <script>try{var s=JSON.parse(localStorage.getItem("gs-school")||"null");if(s){var l=s.schoolName||s.shortName;if(l){document.getElementById("brandName").textContent=l;document.getElementById("brandSub").textContent="Grading System";var t=document.getElementById("topbarTitle");if(t)t.textContent=s.shortName||l;}var e=document.getElementById("brandSeal");if(s.logo){e.innerHTML="";var i=new Image();i.src=s.logo;i.alt="";e.appendChild(i);e.classList.add("has-logo");e.classList.remove("is-default");}}}catch(x){}</script>
+          <button type="button" class="btn-close btn-close-white d-lg-none mt-4 me-3" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Close menu"></button>
+        </div>
+        <nav class="tw-pb-2">
+          <a class="side-link" href="dashboard.html" data-roles="admin registrar teacher"><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Dashboard</span></a>
+          <a class="side-link" href="notifications.html" data-roles="admin registrar teacher"><i class="bi bi-bell" aria-hidden="true"></i><span>Notifications</span><span class="nav-badge d-none" id="notifBadge" aria-label="unread notifications"></span></a>
+          <div class="nav-group-label" data-roles="admin registrar">Academic setup</div>
+          <a class="side-link" href="subjects.html" data-roles="admin registrar"><i class="bi bi-journal-bookmark" aria-hidden="true"></i><span>Subjects</span></a>
+          <a class="side-link" href="curriculum.html" data-roles="admin registrar"><i class="bi bi-list-check" aria-hidden="true"></i><span>Curriculum</span></a>
+          <a class="side-link" href="teachers.html" data-roles="admin registrar"><i class="bi bi-person-badge" aria-hidden="true"></i><span>Teachers</span></a>
+          <a class="side-link" href="sections.html" data-roles="admin registrar"><i class="bi bi-collection" aria-hidden="true"></i><span>Sections</span></a>
+          <a class="side-link" href="students.html" data-roles="admin registrar"><i class="bi bi-people" aria-hidden="true"></i><span>Students</span></a>
+          <div class="nav-group-label" data-roles="admin registrar teacher">Grading</div>
+          <a class="side-link" href="assignments.html" data-roles="admin registrar"><i class="bi bi-diagram-3" aria-hidden="true"></i><span>Grading assignments</span></a>
+          <a class="side-link" href="grading.html" data-roles="admin registrar teacher"><i class="bi bi-pencil-square" aria-hidden="true"></i><span>Enter grades</span></a>
+          <a class="side-link" href="final-grades.html" data-roles="admin registrar"><i class="bi bi-mortarboard" aria-hidden="true"></i><span>Final grades</span></a>
+          <div class="nav-group-label" data-roles="admin">Administration</div>
+          <a class="side-link" href="users.html" data-roles="admin"><i class="bi bi-shield-lock" aria-hidden="true"></i><span>Users and roles</span></a>
+          <a class="side-link" href="settings.html" data-roles="admin"><i class="bi bi-building" aria-hidden="true"></i><span>School settings</span></a>
+          <a class="side-link active" aria-current="page" href="options.html" data-roles="admin"><i class="bi bi-sliders" aria-hidden="true"></i><span>Setup and options</span></a>
+          <a class="side-link" href="audit.html" data-roles="admin"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Audit trail</span></a>
+          <a class="side-link" href="backup.html" data-roles="admin"><i class="bi bi-database-down" aria-hidden="true"></i><span>Backup and restore</span></a>
+        </nav>
+        <div class="sidebar-user">
+          <div class="d-flex align-items-center gap-2">
+            <span class="user-avatar" id="userInitials" aria-hidden="true"></span>
+            <div class="tw-min-w-0">
+              <div class="user-name text-truncate" id="userName"></div>
+              <div class="user-role" id="userRole"></div>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-3">
+            <button type="button" class="btn btn-sm sidebar-btn flex-fill" id="btnChangePassword"><i class="bi bi-key me-1"></i>Password</button>
+            <button type="button" class="btn btn-sm sidebar-btn flex-fill" id="btnSignOut"><i class="bi bi-box-arrow-right me-1"></i>Sign out</button>
+          </div>
+          <script>try{var n=localStorage.getItem("gs-name");if(n){document.getElementById("userName").textContent=n;document.getElementById("userInitials").textContent=n.split(/\s+/).map(function(w){return w[0]}).slice(0,2).join("").toUpperCase();}}catch(e){}</script>
+        </div>
+      </div>
+    </aside>
+  <div class="app-main">
+    <header class="topbar d-lg-none">
+      <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Open menu">
+        <i class="bi bi-list fs-5"></i>
+      </button>
+      <span class="topbar-title" id="topbarTitle">AcadLink Grading System</span>
+      <a href="notifications.html" class="topbar-bell ms-auto" aria-label="Notifications">
+        <i class="bi bi-bell fs-5"></i><span class="nav-badge d-none" id="notifBadgeTop"></span>
+      </a>
+    </header>
+    <main class="app-content" id="main">
+      <div id="config-alert"></div>
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Setup and options</h1>
+          <p class="page-lede">How the school grades students, and what happens when a student changes section.</p>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-12">
+          <form class="panel" id="scaleForm" novalidate>
+            <div class="panel-head">
+              <h2 class="panel-title"><i class="bi bi-123 me-1"></i>Grading scale</h2>
+              <span class="badge badge-none" id="scaleStatus">Loading…</span>
+            </div>
+            <div class="panel-body">
+              <div class="alert alert-warning small py-2 d-none" id="scaleLocked" role="status"></div>
+              <fieldset class="mb-3" id="scaleChoices">
+                <legend class="form-label fw-semibold fs-6 mb-2">Grades are entered as</legend>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="radio" name="scale" id="scPercent" value="percent">
+                  <label class="form-check-label" for="scPercent"><strong>Percentage, 0 to 100</strong> <span class="text-secondary">· 75 and above is Passed, below 75 is Failed</span></label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="radio" name="scale" id="scPoint1" value="point1">
+                  <label class="form-check-label" for="scPoint1"><strong>1.00 to 5.00, 1.00 is the highest</strong> <span class="text-secondary">· 1.00 to 3.00 passing, 5.00 failing</span></label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="scale" id="scPoint5" value="point5">
+                  <label class="form-check-label" for="scPoint5"><strong>5.00 to 1.00, 5.00 is the highest</strong> <span class="text-secondary">· 5.00 to 3.00 passing, 1.00 failing (the reverse)</span></label>
+                </div>
+              </fieldset>
+              <div class="form-check form-switch mb-3" id="condWrap">
+                <input class="form-check-input" type="checkbox" role="switch" id="scConditional">
+                <label class="form-check-label" for="scConditional">Use a <strong>conditional / incomplete</strong> grade (<span id="condValue">4.00</span>)</label>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 scale-table">
+                  <thead><tr><th>Grade</th><th>Meaning</th><th>Remarks</th></tr></thead>
+                  <tbody id="scaleTable"></tbody>
+                </table>
+              </div>
+              <p class="small text-secondary mt-2 mb-0" id="scaleGwa"></p>
+            </div>
+            <div class="panel-body border-top d-flex justify-content-end gap-2">
+              <span class="small text-secondary me-auto align-self-center" id="scaleSaved"></span>
+              <button type="submit" class="btn btn-primary" id="btnSaveScale"><i class="bi bi-save me-1"></i>Save grading scale</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="col-12">
+          <form class="panel" id="finalForm" novalidate>
+            <div class="panel-head">
+              <h2 class="panel-title"><i class="bi bi-mortarboard me-1"></i>Final grade (GWA)</h2>
+              <span class="badge badge-none" id="finalStatus">Loading…</span>
+            </div>
+            <div class="panel-body">
+              <p class="small text-secondary mb-3">The scale used for the <strong>final grade</strong> on Final grades, student reports, emails and the Excel grade sheets. The GWA is always computed from the subjects' grades; it can then be shown on another scale, e.g. grades entered as 0–100 with the final grade as 1.00–5.00. You can change this at any time: nothing saved changes.</p>
+              <fieldset class="mb-3">
+                <legend class="form-label fw-semibold fs-6 mb-2">Show the final grade as</legend>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="radio" name="finalScale" id="fsSame" value="same">
+                  <label class="form-check-label" for="fsSame"><strong>Same as the grading scale</strong> <span class="text-secondary" id="fsSameNote"></span></label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="radio" name="finalScale" id="fsPercent" value="percent">
+                  <label class="form-check-label" for="fsPercent"><strong>Percentage, 0 to 100</strong> <span class="text-secondary">· 75 and above is Passed</span></label>
+                </div>
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="radio" name="finalScale" id="fsPoint1" value="point1">
+                  <label class="form-check-label" for="fsPoint1"><strong>1.00 to 5.00, 1.00 is the highest</strong> <span class="text-secondary">· 1.00 excellent · 1.25–2.75 very good to fair · 3.00 lowest passing · 4.00 conditional / incomplete · 5.00 failing</span></label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="finalScale" id="fsPoint5" value="point5">
+                  <label class="form-check-label" for="fsPoint5"><strong>5.00 to 1.00, 5.00 is the highest</strong> <span class="text-secondary">· the reverse</span></label>
+                </div>
+              </fieldset>
+              <div class="small text-secondary mb-3 d-none" id="fsPercentOff">Grades entered on a 1.00–5.00 scale can't be shown as a percentage: there's no standard way to convert them back.</div>
+              <div id="transWrap" class="d-none">
+                <h3 class="h6 fw-semibold mb-1">Conversion table (0–100 → <span id="transTo">1.00–5.00</span>)</h3>
+                <p class="small text-secondary mb-2">The lowest GWA for each grade. Below the last row is the failing grade. Change the numbers to match your school's table.</p>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-1 trans-table">
+                    <thead><tr><th>Final grade</th><th>GWA from</th><th>to</th></tr></thead>
+                    <tbody id="transTable"></tbody>
+                  </table>
+                </div>
+                <button type="button" class="btn btn-link btn-sm p-0" id="btnTransReset">Use the standard table</button>
+              </div>
+              <div class="alert alert-danger small py-2 d-none mt-2" id="finalError" role="alert"></div>
+            </div>
+            <div class="panel-body border-top d-flex justify-content-end gap-2">
+              <span class="small text-secondary me-auto align-self-center" id="finalSaved"></span>
+              <button type="submit" class="btn btn-primary" id="btnSaveFinal"><i class="bi bi-save me-1"></i>Save final grade</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="col-12">
+          <form class="panel" id="auditForm" novalidate>
+            <div class="panel-head">
+              <h2 class="panel-title"><i class="bi bi-clock-history me-1"></i>Audit trail</h2>
+              <span class="badge badge-none" id="auditStatus">Loading…</span>
+            </div>
+            <div class="panel-body">
+              <p class="small text-secondary mb-3">The <a href="audit.html">Audit trail</a> records who added, edited or deleted what, with the old and new values. Choose how long entries are kept.</p>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="auditKeep" id="akManual" value="manual">
+                <label class="form-check-label" for="akManual"><strong>Keep until I delete them</strong> <span class="text-secondary">· delete old entries by hand on the Audit trail page</span></label>
+              </div>
+              <div class="form-check d-flex flex-wrap align-items-center gap-2">
+                <input class="form-check-input" type="radio" name="auditKeep" id="akAuto" value="auto">
+                <label class="form-check-label" for="akAuto"><strong>Delete automatically</strong> entries older than</label>
+                <select class="form-select form-select-sm w-auto" id="akPreset" aria-label="Keep entries for">
+                  <option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option>
+                  <option value="180">180 days</option><option value="365">1 year</option><option value="730">2 years</option>
+                  <option value="custom">Custom…</option>
+                </select>
+                <span class="d-none align-items-center gap-1" id="akCustomWrap">
+                  <input type="number" class="form-control form-control-sm" id="akDays" min="1" max="3650" step="1" style="width:6rem" aria-label="Number of days">
+                  <span class="small">days</span>
+                </span>
+              </div>
+              <div class="invalid-feedback d-block" id="akError"></div>
+              <p class="small text-secondary mt-2 mb-0">Old entries are deleted when an administrator opens the system (at most twice a day). A note of each delete is kept in the audit trail.</p>
+            </div>
+            <div class="panel-body border-top d-flex justify-content-end gap-2">
+              <span class="small text-secondary me-auto align-self-center" id="auditSaved"></span>
+              <button type="submit" class="btn btn-primary" id="btnSaveAudit"><i class="bi bi-save me-1"></i>Save</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="col-12">
+          <form class="panel" id="combineForm" novalidate>
+            <div class="panel-head">
+              <h2 class="panel-title"><i class="bi bi-intersect me-1"></i>Combined classes</h2>
+              <span class="badge badge-none" id="combineStatus">Loading…</span>
+            </div>
+            <div class="panel-body">
+              <p class="small text-secondary mb-3">Sometimes one teacher handles the same subject for two or more sections together (for example GE 1 for BSPT 1 and BSPH 1). Create one grading assignment per section as usual; with this on, Enter grades also shows them as <strong>one combined class list</strong>. Each grade is still saved to the student's own section, so every section's records, report cards and Excel sheets stay correct.</p>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="combine" id="cbAuto" value="auto">
+                <label class="form-check-label" for="cbAuto"><strong>On</strong> <span class="text-secondary">· same teacher, subject, school year and term in 2+ sections = one combined class (each section can still be opened alone)</span></label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="combine" id="cbOff" value="off">
+                <label class="form-check-label" for="cbOff"><strong>Off</strong> <span class="text-secondary">· each section is its own class</span></label>
+              </div>
+            </div>
+            <div class="panel-body border-top d-flex justify-content-end gap-2">
+              <span class="small text-secondary me-auto align-self-center" id="combineSaved"></span>
+              <button type="submit" class="btn btn-primary" id="btnSaveCombine"><i class="bi bi-save me-1"></i>Save</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="col-12">
+          <form class="panel" id="termForm" novalidate>
+            <div class="panel-head">
+              <h2 class="panel-title"><i class="bi bi-calendar-x me-1"></i>Term deadlines</h2>
+              <span class="badge badge-none" id="termStatus">Loading…</span>
+            </div>
+            <div class="panel-body">
+              <p class="small text-secondary mb-3">After a term's deadline, teachers can no longer add grades for that term's classes (grading assignments with that term). Saved grades stay; teachers can still ask for a grade change, and the registrar and administrators can still enter grades. Leave a date empty to keep the term open.</p>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0" style="max-width:640px">
+                  <thead><tr><th>Term</th><th>Teachers can add grades until</th><th>Now</th></tr></thead>
+                  <tbody id="termTable"></tbody>
+                </table>
+              </div>
+              <div class="invalid-feedback d-block" id="termError"></div>
+            </div>
+            <div class="panel-body border-top d-flex justify-content-end gap-2">
+              <span class="small text-secondary me-auto align-self-center" id="termSaved"></span>
+              <button type="submit" class="btn btn-primary" id="btnSaveTerms"><i class="bi bi-save me-1"></i>Save deadlines</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="col-12">
+          <form class="panel" id="moveForm" novalidate>
+            <div class="panel-head">
+              <h2 class="panel-title"><i class="bi bi-arrow-left-right me-1"></i>When a student changes section</h2>
+            </div>
+            <div class="panel-body">
+              <p class="small text-secondary mb-3">Moving a student to another section (Students → Edit, or Move to section) can also move them in grading assignments: they're added to the new section's grading assignments for the same school year, and removed from the old section's ones where they have no saved grade yet. Saved grades are never deleted.</p>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="sectionMove" id="mvAsk" value="ask">
+                <label class="form-check-label" for="mvAsk"><strong>Ask each time</strong> <span class="text-secondary">· "Also move them in grading assignments?"</span></label>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="sectionMove" id="mvAlways" value="always">
+                <label class="form-check-label" for="mvAlways"><strong>Always move them</strong> in grading assignments</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="sectionMove" id="mvNever" value="never">
+                <label class="form-check-label" for="mvNever"><strong>Never</strong> <span class="text-secondary">· only the student's record changes; update grading assignments yourself</span></label>
+              </div>
+            </div>
+            <div class="panel-body border-top d-flex justify-content-end gap-2">
+              <span class="small text-secondary me-auto align-self-center" id="moveSaved"></span>
+              <button type="submit" class="btn btn-primary" id="btnSaveMove"><i class="bi bi-save me-1"></i>Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module" src="../js/options.js"></script>
+</body>
+</html>

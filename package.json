@@ -1,0 +1,11 @@
+{
+  "name": "college-grading-system",
+  "private": true,
+  "description": "Static website (Vercel). Tailwind is pre-built into css/tailwind.css; npm is only needed to rebuild it.",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i css/tailwind.input.css -o css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

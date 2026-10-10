@@ -1,0 +1,52 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": false,
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/pages/:page(assignments|audit|backup|curriculum|dashboard|final-grades|grading|login|notifications|options|sections|settings|setup|students|subjects|teachers|users).html",
+      "destination": "/:page",
+      "permanent": true
+    },
+    {
+      "source": "/pages/:page(assignments|audit|backup|curriculum|dashboard|final-grades|grading|login|notifications|options|sections|settings|setup|students|subjects|teachers|users)",
+      "destination": "/:page",
+      "permanent": true
+    },
+    {
+      "source": "/:page(assignments|audit|backup|curriculum|dashboard|final-grades|grading|login|notifications|options|sections|settings|setup|students|subjects|teachers|users).html",
+      "destination": "/:page",
+      "permanent": true
+    },
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/:page(assignments|audit|backup|curriculum|dashboard|final-grades|grading|login|notifications|options|sections|settings|setup|students|subjects|teachers|users)",
+      "destination": "/pages/:page.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        }
+      ]
+    }
+  ]
+}

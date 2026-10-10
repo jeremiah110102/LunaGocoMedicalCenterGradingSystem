@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Opened directly (not inside the main page)? Go to the main address and show this page there -->
+  <script>
+  (function () {
+    try {
+      if (window.top !== window.self) return;
+      var root = location.pathname.replace(/(\/pages)?\/[^/]*$/, "/");
+      var rel = location.pathname.slice(root.length) + location.search + location.hash;
+      sessionStorage.setItem("gs-current-page", rel || "pages/dashboard.html");
+      location.replace(root);
+    } catch (e) {}
+  })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#14203a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Grading">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <!-- Very old browsers can't run the system: show a clear message instead of a blank page -->
+  <script>
+  (function () {
+    var ok = true;
+    try { new Function("var a = {}; return a?.b ?? 1")(); } catch (e) { ok = false; }
+    if (!("noModule" in document.createElement("script"))) ok = false;
+    if (!ok) {
+      document.addEventListener("DOMContentLoaded", function () {
+        document.body.innerHTML = '<div style="max-width:520px;margin:12vh auto;padding:24px;font-family:Arial,sans-serif;color:#1f2a44">' +
+          '<h1 style="font-size:22px">Please update your browser</h1>' +
+          '<p>The grading system needs a recent browser: Chrome, Edge, Firefox, Safari (iPhone/iPad with iOS 14 or newer) or Samsung Internet.</p>' +
+          '<p>Update your browser, or open the system on another device.</p></div>';
+      });
+    }
+  })();
+  </script>
+  <title>Enter Grades | AcadLink Grading System</title>
+  <!-- Apply the remembered role before first paint so menu items don't flicker (security is in Firestore rules) -->
+  <script>try{var r=localStorage.getItem("gs-role");if(r)document.documentElement.dataset.role=r;}catch(e){}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Tailwind utilities (tw- prefix), pre-built: see tailwind.config.js -->
+  <link href="../css/tailwind.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <!-- Prefetch other pages on hover so navigation feels instant -->
+  <script type="speculationrules">
+  { "prefetch": [ { "where": { "href_matches": "/*" }, "eagerness": "moderate" } ] }
+  </script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="offcanvas-lg offcanvas-start sidebar" tabindex="-1" id="sidebar" aria-label="Main navigation">
+      <div class="sidebar-inner">
+        <div class="d-flex align-items-start justify-content-between">
+          <a class="sidebar-brand" href="dashboard.html">
+            <span class="brand-seal has-logo is-default" id="brandSeal" aria-hidden="true"><img src="../icons/acadlink-mark.png" alt=""></span>
+            <span class="tw-min-w-0"><span class="brand-name d-block" id="brandName">AcadLink</span><span class="brand-sub d-block text-truncate" id="brandSub">Grading System</span></span>
+          </a>
+          <script>try{var s=JSON.parse(localStorage.getItem("gs-school")||"null");if(s){var l=s.schoolName||s.shortName;if(l){document.getElementById("brandName").textContent=l;document.getElementById("brandSub").textContent="Grading System";var t=document.getElementById("topbarTitle");if(t)t.textContent=s.shortName||l;}var e=document.getElementById("brandSeal");if(s.logo){e.innerHTML="";var i=new Image();i.src=s.logo;i.alt="";e.appendChild(i);e.classList.add("has-logo");e.classList.remove("is-default");}}}catch(x){}</script>
+          <button type="button" class="btn-close btn-close-white d-lg-none mt-4 me-3" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Close menu"></button>
+        </div>
+        <nav class="tw-pb-2">
+          <a class="side-link" href="dashboard.html" data-roles="admin registrar teacher"><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Dashboard</span></a>
+          <a class="side-link" href="notifications.html" data-roles="admin registrar teacher"><i class="bi bi-bell" aria-hidden="true"></i><span>Notifications</span><span class="nav-badge d-none" id="notifBadge" aria-label="unread notifications"></span></a>
+          <div class="nav-group-label" data-roles="admin registrar">Academic setup</div>
+          <a class="side-link" href="subjects.html" data-roles="admin registrar"><i class="bi bi-journal-bookmark" aria-hidden="true"></i><span>Subjects</span></a>
+          <a class="side-link" href="curriculum.html" data-roles="admin registrar"><i class="bi bi-list-check" aria-hidden="true"></i><span>Curriculum</span></a>
+          <a class="side-link" href="teachers.html" data-roles="admin registrar"><i class="bi bi-person-badge" aria-hidden="true"></i><span>Teachers</span></a>
+          <a class="side-link" href="sections.html" data-roles="admin registrar"><i class="bi bi-collection" aria-hidden="true"></i><span>Sections</span></a>
+          <a class="side-link" href="students.html" data-roles="admin registrar"><i class="bi bi-people" aria-hidden="true"></i><span>Students</span></a>
+          <div class="nav-group-label" data-roles="admin registrar teacher">Grading</div>
+          <a class="side-link" href="assignments.html" data-roles="admin registrar"><i class="bi bi-diagram-3" aria-hidden="true"></i><span>Grading assignments</span></a>
+          <a class="side-link active" aria-current="page" href="grading.html" data-roles="admin registrar teacher"><i class="bi bi-pencil-square" aria-hidden="true"></i><span>Enter grades</span></a>
+          <a class="side-link" href="final-grades.html" data-roles="admin registrar"><i class="bi bi-mortarboard" aria-hidden="true"></i><span>Final grades</span></a>
+          <div class="nav-group-label" data-roles="admin">Administration</div>
+          <a class="side-link" href="users.html" data-roles="admin"><i class="bi bi-shield-lock" aria-hidden="true"></i><span>Users and roles</span></a>
+          <a class="side-link" href="settings.html" data-roles="admin"><i class="bi bi-building" aria-hidden="true"></i><span>School settings</span></a>
+          <a class="side-link" href="options.html" data-roles="admin"><i class="bi bi-sliders" aria-hidden="true"></i><span>Setup and options</span></a>
+          <a class="side-link" href="audit.html" data-roles="admin"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Audit trail</span></a>
+          <a class="side-link" href="backup.html" data-roles="admin"><i class="bi bi-database-down" aria-hidden="true"></i><span>Backup and restore</span></a>
+        </nav>
+        <div class="sidebar-user">
+          <div class="d-flex align-items-center gap-2">
+            <span class="user-avatar" id="userInitials" aria-hidden="true"></span>
+            <div class="tw-min-w-0">
+              <div class="user-name text-truncate" id="userName"></div>
+              <div class="user-role" id="userRole"></div>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-3">
+            <button type="button" class="btn btn-sm sidebar-btn flex-fill" id="btnChangePassword"><i class="bi bi-key me-1"></i>Password</button>
+            <button type="button" class="btn btn-sm sidebar-btn flex-fill" id="btnSignOut"><i class="bi bi-box-arrow-right me-1"></i>Sign out</button>
+          </div>
+          <script>try{var n=localStorage.getItem("gs-name");if(n){document.getElementById("userName").textContent=n;document.getElementById("userInitials").textContent=n.split(/\s+/).map(function(w){return w[0]}).slice(0,2).join("").toUpperCase();}}catch(e){}</script>
+        </div>
+      </div>
+    </aside>
+  <div class="app-main">
+    <header class="topbar d-lg-none">
+      <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Open menu">
+        <i class="bi bi-list fs-5"></i>
+      </button>
+      <span class="topbar-title" id="topbarTitle">AcadLink Grading System</span>
+      <a href="notifications.html" class="topbar-bell ms-auto" aria-label="Notifications">
+        <i class="bi bi-bell fs-5"></i><span class="nav-badge d-none" id="notifBadgeTop"></span>
+      </a>
+    </header>
+    <main class="app-content" id="main">
+      <div id="config-alert"></div>
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Enter grades</h1>
+          <p class="page-lede">Pick a grading assignment, type each student's final grade, and save. Remarks are calculated for you.</p>
+        </div>
+        
+      </div>
+      <div class="panel mb-4">
+        <div class="panel-body">
+          <label for="assignmentSelect" class="form-label fw-semibold">Grading assignment</label>
+          <select class="form-select assignment-pick" id="assignmentSelect">
+            <option value="">Loading assignments…</option>
+          </select>
+          <div class="form-text">Listed by teacher. Create assignments on the <a href="assignments.html">Grading assignments</a> page.</div>
+        </div>
+      </div>
+
+      <!-- Teachers: one card per class, with its progress and deadline -->
+      <section id="classCards" class="class-cards mb-4 d-none" aria-label="Your classes"></section>
+
+      <div id="sheetEmpty" class="panel"><div class="empty-state">Select a grading assignment to open its class record.</div></div>
+
+      <section class="class-record d-none" id="sheet" aria-labelledby="recordTitle">
+        <div class="record-head">
+          <h2 class="record-title" id="recordTitle"></h2>
+          <p class="record-sub" id="recordSub"></p>
+          <dl class="record-meta" id="recordMeta"></dl>
+        </div>
+        <div class="record-tally" id="tally" aria-live="polite"></div>
+        <!-- Find students in a big class: rows are only hidden or moved, so typed grades stay -->
+        <div class="record-tools" id="recordTools">
+          <input type="search" class="form-control form-control-sm" id="rowSearch" placeholder="Search name or student ID" aria-label="Search this class by name or student ID" autocomplete="off">
+          <select class="form-select form-select-sm" id="rowFilter" aria-label="Show">
+            <option value="all">All students</option>
+            <option value="none">No grade yet</option>
+            <option value="unsaved">Unsaved changes</option>
+            <option value="saved">Saved, not submitted</option>
+            <option value="submitted">Submitted</option>
+            <option value="fix">Needs fixing</option>
+          </select>
+          <select class="form-select form-select-sm" id="rowSort" aria-label="Sort by">
+            <option value="name">Sort: Name</option>
+            <option value="id">Sort: Student ID</option>
+            <option value="grade">Sort: Grade, best first</option>
+            <option value="todo">Sort: No grade first</option>
+          </select>
+          <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="btnRoster" title="Ask the registrar to add, remove or move a student"><i class="bi bi-people me-1" aria-hidden="true"></i>Class list change<span class="badge text-bg-warning ms-1 d-none" id="rosterBadge"></span></button>
+          <span class="small text-secondary ms-auto" id="rowCount" aria-live="polite"></span>
+          <p class="small text-secondary mb-0 w-100" id="scaleHint"></p>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-stack table-registry grade-table">
+            <thead><tr><th class="num" style="width:3rem">#</th><th>Student ID</th><th>Student Name</th><th class="num grade-col">Final Grade</th><th>Remarks</th><th>Status</th></tr></thead>
+            <tbody id="gradeBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state d-none" id="rowNone">No students match. <button type="button" class="btn btn-link p-0 align-baseline" id="rowShowAll">Show all students</button></div>
+        <!-- What happened on the last save when it wasn't simply "saved" (errors, grades saved elsewhere) -->
+        <div class="alert save-notice d-none mx-3 mb-0" id="saveNotice" role="status" aria-live="polite"></div>
+        <div class="record-foot">
+          <div>
+            <span class="small text-secondary" id="dirtyNote">No unsaved changes</span>
+            <div class="small text-secondary key-hint" id="keyHint">Keys: Enter or ↓ next student · Shift+Enter or ↑ previous · Ctrl+S save</div>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-primary" id="btnPasteGrades" title="Paste names and grades copied from Excel"><i class="bi bi-clipboard-check me-1"></i>Paste<span class="btn-long"> grades</span></button>
+            <button type="button" class="btn btn-success" id="btnSaveGrades"><i class="bi bi-save me-1"></i>Save<span class="btn-long"> grades</span></button>
+            <!-- Teachers: saved grades stay drafts (editable) until submitted -->
+            <button type="button" class="btn btn-primary d-none" id="btnSubmitGrades"><i class="bi bi-send-check me-1"></i>Submit<span class="btn-long"> grades</span></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Paste grades: names + grades copied from the teacher's Excel class record -->
+      <div class="modal fade" id="pasteModal" tabindex="-1" aria-labelledby="pasteTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2 class="modal-title fs-5" id="pasteTitle">Paste grades</h2>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div id="pasteStep1">
+                <label for="pasteText" class="form-label">Copy two columns from Excel (student name, then final grade) and paste them here</label>
+                <textarea class="form-control font-monospace small" id="pasteText" rows="12" spellcheck="false" placeholder="Ahorro, Justine Ashley Raymundo&#9;1.75&#10;Alcantara, Kristine Mae Claveria&#9;2.00&#10;Alegre, Edher Ayala A.&#9;INC"></textarea>
+                <div class="form-text">One student per line: the name, then the grade (a tab or spaces between). INC and DRP work too. Names are matched like Paste list: capitals, accents and a shortened middle name don't matter; a Student ID works too.</div>
+              </div>
+              <div id="pasteStep2" class="d-none">
+                <div class="d-flex flex-wrap gap-2 mb-2 small" id="pasteSummary"></div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                  <thead><tr><th class="text-secondary">#</th><th>From the paste</th><th>Student</th><th>Grade</th></tr></thead>
+                  <tbody id="pasteBody"></tbody>
+                </table></div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary me-auto d-none" id="pasteBack"><i class="bi bi-arrow-left me-1"></i>Edit</button>
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-primary" id="pasteFind"><i class="bi bi-search me-1"></i>Match students</button>
+              <button type="button" class="btn btn-primary d-none" id="pasteApply"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal fade" id="requestModal" tabindex="-1" aria-labelledby="requestTitle" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-centered">
+          <form class="modal-content" id="requestForm" novalidate>
+            <div class="modal-header">
+              <h2 class="modal-title fs-5" id="requestTitle">Request a grade change</h2>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <p class="small text-secondary mb-3">Saved grades can only be changed with approval. Your request goes to the approvers, and you'll get a notification when it's decided.</p>
+              <div class="alert alert-danger d-none py-2" id="requestError" role="alert"></div>
+              <dl class="request-facts" id="requestFacts"></dl>
+              <div class="row g-3 align-items-end mb-3">
+                <div class="col-6">
+                  <label for="requestGrade" class="form-label required">New final grade</label>
+                  <input type="text" inputmode="decimal" class="form-control grade-input ms-0" id="requestGrade" maxlength="6" autocomplete="off">
+                  <div class="invalid-feedback"></div>
+                </div>
+                <div class="col-6 pb-2" id="requestRemarks"></div>
+              </div>
+              <div class="mb-2">
+                <label for="requestReason" class="form-label required">Reason for the change</label>
+                <textarea class="form-control" id="requestReason" rows="3" maxlength="1000" placeholder="For example: the final exam was re-checked and 4 points were not counted."></textarea>
+                <div class="invalid-feedback"></div>
+              </div>
+              <div class="small text-secondary" id="requestApprovers"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btnSendRequest"><i class="bi bi-send me-1"></i>Send for approval</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Class list request: the teacher asks the registrar to add, remove or move students -->
+      <div class="modal fade roster-modal" id="rosterModal" tabindex="-1" aria-labelledby="rosterTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
+          <div class="modal-content">
+            <div class="modal-header">
+              <div>
+                <h2 class="modal-title roster-title" id="rosterTitle">Ask the registrar to change this class list</h2>
+                <p class="roster-sub mb-0" id="rosterSub"></p>
+              </div>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="alert alert-danger d-none py-2" id="rosterError" role="alert"></div>
+              <div class="roster-status" id="rosterStatus"></div>
+              <div class="roster-part d-none" id="rosterPartWrap">
+                <label for="rosterPart" class="form-label small fw-semibold mb-1">Section of this combined class</label>
+                <select class="form-select form-select-sm" id="rosterPart"></select>
+              </div>
+
+              <section id="rosterChoose" aria-labelledby="rosterQ">
+                <p class="roster-q" id="rosterQ">What needs to change?</p>
+                <div class="roster-choices" role="group" aria-labelledby="rosterQ">
+                  <button type="button" class="roster-choice" data-roster-type="add" aria-pressed="false">
+                    <i class="bi bi-person-plus" aria-hidden="true"></i>
+                    <span class="rc-verb">Add a student</span>
+                    <span class="rc-hint">Someone is missing from your list</span>
+                  </button>
+                  <button type="button" class="roster-choice" data-roster-type="remove" aria-pressed="false">
+                    <i class="bi bi-person-dash" aria-hidden="true"></i>
+                    <span class="rc-verb">Remove a student</span>
+                    <span class="rc-hint">Someone isn't enrolled in this class</span>
+                  </button>
+                  <button type="button" class="roster-choice" data-roster-type="move" aria-pressed="false">
+                    <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                    <span class="rc-verb">Move to another class</span>
+                    <span class="rc-hint">Someone belongs to another section or teacher</span>
+                  </button>
+                </div>
+
+                <ol class="roster-steps" id="rosterSteps" hidden>
+                  <li class="roster-step">
+                    <label for="rosterFind" class="roster-step-title">Which student?</label>
+                    <input type="search" class="form-control form-control-sm" id="rosterFind" placeholder="Search name or student ID" autocomplete="off">
+                    <div class="roster-pick" id="rosterStudents" role="group" aria-label="Students"></div>
+                  </li>
+                  <li class="roster-step" id="rosterTargetStep" hidden>
+                    <label for="rosterClassFind" class="roster-step-title">Where does this student belong?</label>
+                    <input type="search" class="form-control form-control-sm" id="rosterClassFind" placeholder="Search a section or teacher, for example 2B or Joseph" autocomplete="off">
+                    <div class="roster-pick" id="rosterClasses" role="group" aria-label="Classes of this subject"></div>
+                    <button type="button" class="btn btn-link btn-sm px-0" id="rosterNotListed" aria-expanded="false">Not in the list? Choose the section</button>
+                    <div class="roster-other" id="rosterOther" hidden>
+                      <div class="row g-2">
+                        <div class="col-sm-6">
+                          <label for="rosterSection" class="form-label small mb-1">Section</label>
+                          <select class="form-select form-select-sm" id="rosterSection"></select>
+                        </div>
+                        <div class="col-sm-6">
+                          <label for="rosterTeacherName" class="form-label small mb-1">Teacher, if you know</label>
+                          <input type="text" class="form-control form-control-sm" id="rosterTeacherName" maxlength="80" placeholder="For example Sir Joseph">
+                        </div>
+                      </div>
+                      <p class="small text-secondary mb-0 mt-1">If that section has no class of this subject yet, the registrar creates it before approving.</p>
+                    </div>
+                  </li>
+                  <li class="roster-step">
+                    <label for="rosterReason" class="roster-step-title">Why?</label>
+                    <div class="roster-chips" id="rosterChips"></div>
+                    <textarea class="form-control form-control-sm" id="rosterReason" rows="2" maxlength="500" placeholder="Tap a reason above or write your own"></textarea>
+                  </li>
+                </ol>
+
+                <p class="roster-slip" id="rosterPreview" hidden aria-live="polite"></p>
+                <div class="roster-add" id="rosterAddRow" hidden>
+                  <button type="button" class="btn btn-primary btn-sm" id="btnRosterAdd"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add to draft</button>
+                  <button type="button" class="btn btn-link btn-sm" id="btnRosterCancel">Cancel</button>
+                  <span class="small text-danger" id="rosterLineError" role="alert"></span>
+                </div>
+              </section>
+
+              <section class="roster-draft" aria-labelledby="rosterDraftHead">
+                <h3 class="roster-draft-head" id="rosterDraftHead">Your draft</h3>
+                <ul class="roster-lines" id="rosterLines"></ul>
+              </section>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-danger me-auto d-none" id="btnRosterWithdraw">Withdraw</button>
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-primary d-none" id="btnRosterSubmit"><i class="bi bi-send me-1" aria-hidden="true"></i>Submit request</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module" src="../js/grading.js"></script>
+</body>
+</html>

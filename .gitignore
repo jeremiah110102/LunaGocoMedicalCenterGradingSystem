@@ -1,0 +1,21 @@
+# No keys live in the code: the Firebase connection is entered on the
+# setup screen and EmailJS keys are stored in School settings.
+# Old config files from earlier versions, just in case:
+js/email-config.js
+js/*.local.js
+
+# Backups and exports contain student records and grades: never commit them
+*.xlsx
+*.xls
+*.csv
+
+# Build output, tools, editors, OS files
+_site/
+node_modules/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Update packages (never commit these)
+*.bundle

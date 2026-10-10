@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Opened directly (not inside the main page)? Go to the main address and show this page there -->
+  <script>
+  (function () {
+    try {
+      if (window.top !== window.self) return;
+      var root = location.pathname.replace(/(\/pages)?\/[^/]*$/, "/");
+      var rel = location.pathname.slice(root.length) + location.search + location.hash;
+      sessionStorage.setItem("gs-current-page", rel || "pages/dashboard.html");
+      location.replace(root);
+    } catch (e) {}
+  })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#14203a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Grading">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <!-- Very old browsers can't run the system: show a clear message instead of a blank page -->
+  <script>
+  (function () {
+    var ok = true;
+    try { new Function("var a = {}; return a?.b ?? 1")(); } catch (e) { ok = false; }
+    if (!("noModule" in document.createElement("script"))) ok = false;
+    if (!ok) {
+      document.addEventListener("DOMContentLoaded", function () {
+        document.body.innerHTML = '<div style="max-width:520px;margin:12vh auto;padding:24px;font-family:Arial,sans-serif;color:#1f2a44">' +
+          '<h1 style="font-size:22px">Please update your browser</h1>' +
+          '<p>The grading system needs a recent browser: Chrome, Edge, Firefox, Safari (iPhone/iPad with iOS 14 or newer) or Samsung Internet.</p>' +
+          '<p>Update your browser, or open the system on another device.</p></div>';
+      });
+    }
+  })();
+  </script>
+  <title>Subjects | AcadLink Grading System</title>
+  <!-- Apply the remembered role before first paint so menu items don't flicker (security is in Firestore rules) -->
+  <script>try{var r=localStorage.getItem("gs-role");if(r)document.documentElement.dataset.role=r;}catch(e){}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <!-- Tailwind utilities (tw- prefix), pre-built: see tailwind.config.js -->
+  <link href="../css/tailwind.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <!-- Prefetch other pages on hover so navigation feels instant -->
+  <script type="speculationrules">
+  { "prefetch": [ { "where": { "href_matches": "/*" }, "eagerness": "moderate" } ] }
+  </script>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="offcanvas-lg offcanvas-start sidebar" tabindex="-1" id="sidebar" aria-label="Main navigation">
+      <div class="sidebar-inner">
+        <div class="d-flex align-items-start justify-content-between">
+          <a class="sidebar-brand" href="dashboard.html">
+            <span class="brand-seal has-logo is-default" id="brandSeal" aria-hidden="true"><img src="../icons/acadlink-mark.png" alt=""></span>
+            <span class="tw-min-w-0"><span class="brand-name d-block" id="brandName">AcadLink</span><span class="brand-sub d-block text-truncate" id="brandSub">Grading System</span></span>
+          </a>
+          <script>try{var s=JSON.parse(localStorage.getItem("gs-school")||"null");if(s){var l=s.schoolName||s.shortName;if(l){document.getElementById("brandName").textContent=l;document.getElementById("brandSub").textContent="Grading System";var t=document.getElementById("topbarTitle");if(t)t.textContent=s.shortName||l;}var e=document.getElementById("brandSeal");if(s.logo){e.innerHTML="";var i=new Image();i.src=s.logo;i.alt="";e.appendChild(i);e.classList.add("has-logo");e.classList.remove("is-default");}}}catch(x){}</script>
+          <button type="button" class="btn-close btn-close-white d-lg-none mt-4 me-3" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Close menu"></button>
+        </div>
+        <nav class="tw-pb-2">
+          <a class="side-link" href="dashboard.html" data-roles="admin registrar teacher"><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Dashboard</span></a>
+          <a class="side-link" href="notifications.html" data-roles="admin registrar teacher"><i class="bi bi-bell" aria-hidden="true"></i><span>Notifications</span><span class="nav-badge d-none" id="notifBadge" aria-label="unread notifications"></span></a>
+          <div class="nav-group-label" data-roles="admin registrar">Academic setup</div>
+          <a class="side-link active" aria-current="page" href="subjects.html" data-roles="admin registrar"><i class="bi bi-journal-bookmark" aria-hidden="true"></i><span>Subjects</span></a>
+          <a class="side-link" href="curriculum.html" data-roles="admin registrar"><i class="bi bi-list-check" aria-hidden="true"></i><span>Curriculum</span></a>
+          <a class="side-link" href="teachers.html" data-roles="admin registrar"><i class="bi bi-person-badge" aria-hidden="true"></i><span>Teachers</span></a>
+          <a class="side-link" href="sections.html" data-roles="admin registrar"><i class="bi bi-collection" aria-hidden="true"></i><span>Sections</span></a>
+          <a class="side-link" href="students.html" data-roles="admin registrar"><i class="bi bi-people" aria-hidden="true"></i><span>Students</span></a>
+          <div class="nav-group-label" data-roles="admin registrar teacher">Grading</div>
+          <a class="side-link" href="assignments.html" data-roles="admin registrar"><i class="bi bi-diagram-3" aria-hidden="true"></i><span>Grading assignments</span></a>
+          <a class="side-link" href="grading.html" data-roles="admin registrar teacher"><i class="bi bi-pencil-square" aria-hidden="true"></i><span>Enter grades</span></a>
+          <a class="side-link" href="final-grades.html" data-roles="admin registrar"><i class="bi bi-mortarboard" aria-hidden="true"></i><span>Final grades</span></a>
+          <div class="nav-group-label" data-roles="admin">Administration</div>
+          <a class="side-link" href="users.html" data-roles="admin"><i class="bi bi-shield-lock" aria-hidden="true"></i><span>Users and roles</span></a>
+          <a class="side-link" href="settings.html" data-roles="admin"><i class="bi bi-building" aria-hidden="true"></i><span>School settings</span></a>
+          <a class="side-link" href="options.html" data-roles="admin"><i class="bi bi-sliders" aria-hidden="true"></i><span>Setup and options</span></a>
+          <a class="side-link" href="audit.html" data-roles="admin"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Audit trail</span></a>
+          <a class="side-link" href="backup.html" data-roles="admin"><i class="bi bi-database-down" aria-hidden="true"></i><span>Backup and restore</span></a>
+        </nav>
+        <div class="sidebar-user">
+          <div class="d-flex align-items-center gap-2">
+            <span class="user-avatar" id="userInitials" aria-hidden="true"></span>
+            <div class="tw-min-w-0">
+              <div class="user-name text-truncate" id="userName"></div>
+              <div class="user-role" id="userRole"></div>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-3">
+            <button type="button" class="btn btn-sm sidebar-btn flex-fill" id="btnChangePassword"><i class="bi bi-key me-1"></i>Password</button>
+            <button type="button" class="btn btn-sm sidebar-btn flex-fill" id="btnSignOut"><i class="bi bi-box-arrow-right me-1"></i>Sign out</button>
+          </div>
+          <script>try{var n=localStorage.getItem("gs-name");if(n){document.getElementById("userName").textContent=n;document.getElementById("userInitials").textContent=n.split(/\s+/).map(function(w){return w[0]}).slice(0,2).join("").toUpperCase();}}catch(e){}</script>
+        </div>
+      </div>
+    </aside>
+  <div class="app-main">
+    <header class="topbar d-lg-none">
+      <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Open menu">
+        <i class="bi bi-list fs-5"></i>
+      </button>
+      <span class="topbar-title" id="topbarTitle">AcadLink Grading System</span>
+      <a href="notifications.html" class="topbar-bell ms-auto" aria-label="Notifications">
+        <i class="bi bi-bell fs-5"></i><span class="nav-badge d-none" id="notifBadgeTop"></span>
+      </a>
+    </header>
+    <main class="app-content" id="main">
+      <div id="config-alert"></div>
+
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Subjects</h1>
+          <p class="page-lede">Course offerings and their unit load. Units carry through to every grading assignment and grade.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2"><button type="button" class="btn btn-outline-secondary" id="btnSubjImportOpen"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Import from Excel</button><button type="button" class="btn btn-primary" id="btnAdd"><i class="bi bi-plus-lg me-1"></i>Add subject</button></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="d-flex align-items-center gap-2">
+            <h2 class="panel-title">All subjects</h2>
+            <span class="badge rounded-pill badge-count" id="count">0</span>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            
+            <div class="input-group input-group-sm search-box">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" id="search" placeholder="Search code or name" aria-label="Search code or name">
+        </div>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-stack table-hover table-registry">
+            <thead><tr><th>Subject Code</th><th>Subject Name</th><th class="num">Units</th><th class="text-end">Actions</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal fade" id="formModal" tabindex="-1" aria-labelledby="formModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-centered">
+          <form class="modal-content" id="form" novalidate>
+            <div class="modal-header">
+              <h2 class="modal-title fs-5" id="formModalTitle">Add subject</h2>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="alert alert-danger d-none py-2" id="formError" role="alert"></div>
+              <div class="mb-3">
+                <label for="subjectCode" class="form-label">Subject Code <span class="text-secondary fw-normal">(optional)</span></label>
+                <input type="text" class="form-control text-uppercase" id="subjectCode" maxlength="20" placeholder="IT101" autocomplete="off">
+                <div class="invalid-feedback"></div>
+              </div><div class="mb-3">
+                <label for="subjectName" class="form-label required">Subject Name</label>
+                <input type="text" class="form-control" id="subjectName" maxlength="120" placeholder="Introduction to Computing" autocomplete="off">
+                <div class="invalid-feedback"></div>
+              </div><div class="mb-3">
+                <label for="units" class="form-label required">Units</label>
+                <input type="number" class="form-control" id="units" min="0.5" step="any" inputmode="decimal" placeholder="3">
+                <div class="invalid-feedback"></div><div class="form-text">Whole or decimal values such as 1.5. Must be greater than 0.</div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btnSave">Save subject</button>
+            </div>
+          </form>
+        </div>
+      </div>      <div class="modal fade" id="subjImportModal" tabindex="-1" aria-labelledby="subjImportTitle" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen-sm-down modal-xl modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2 class="modal-title fs-5" id="subjImportTitle">Import from a grade sheet</h2>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="import-steps">
+                <div class="import-step">
+                  <span class="wizard-num" aria-hidden="true">1</span>
+                  <div class="flex-grow-1">
+                    <label for="subjImportFile" class="fw-semibold d-block mb-1">Choose your file</label>
+                    <input class="form-control" type="file" id="subjImportFile" accept=".xlsx,.xls,.csv">
+                    <div class="form-text">
+                      Use the <strong>simple class list</strong> (Proctor on top; section, year, student no, student name, subject code, subject, unit; one row per subject),
+                      or a BSC-style class grade sheet.
+                      <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="btnSubjTemplate">Download the template</button>
+                    </div>
+                    <div class="irreg-help mt-2">
+                      <div class="fw-semibold mb-1"><i class="bi bi-tag me-1"></i>Tagging irregular students</div>
+                      <p class="mb-1">An irregular student doesn't take every subject. On that student's row for a subject they <strong>don't</strong> take, either:</p>
+                      <ul class="mb-1 ps-3">
+                        <li>leave the <strong>subject</strong> or <strong>unit</strong> blank, or</li>
+                        <li>write <code>IRREG</code> (also <code>Irreg</code>, <code>IRREGULAR</code> or <code>Iregular</code>, any capitals) in the subject code, subject or unit.</li>
+                      </ul>
+                      <div class="table-responsive">
+                      <table class="irreg-example table table-sm mb-1" aria-label="Example of tagging an irregular student">
+                        <thead><tr><th>student name</th><th>subject code</th><th>subject</th><th>unit</th><th></th></tr></thead>
+                        <tbody>
+                          <tr><td>Aceron, Ron Ron P.</td><td>GE 1</td><td>Understanding the Self</td><td>3</td><td class="text-success">takes it</td></tr>
+                          <tr><td></td><td>GE 2</td><td>Reading In Philippine History</td><td><code>IRREG</code></td><td class="irreg-no">doesn't take it</td></tr>
+                          <tr><td></td><td>PE 1</td><td>Physical Education 1</td><td></td><td class="irreg-no">doesn't take it (blank unit)</td></tr>
+                        </tbody>
+                      </table>
+                      </div>
+                      <p class="mb-0">The student is left out of those subjects' grading assignments, and the preview shows them, e.g. <em>"GE 1 · IRREG: GE 2, PE 1"</em>.</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="import-step d-none" id="subjExtrasStep">
+                  <span class="wizard-num" aria-hidden="true">2</span>
+                  <div class="flex-grow-1">
+                    <span class="fw-semibold d-block mb-1">Also add from the file</span>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="subjMakeTeachers" checked>
+                      <label class="form-check-label" for="subjMakeTeachers">Teachers <span class="text-secondary">(instructors named above each subject)</span></label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="subjMakeSections" checked>
+                      <label class="form-check-label" for="subjMakeSections">Sections <span class="text-secondary">(one per sheet, e.g. BSC 3A)</span></label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="subjMakeStudents" checked>
+                      <label class="form-check-label" for="subjMakeStudents">Students <span class="text-secondary">(listed under NAME; Student IDs are created if the file has none)</span></label>
+                    </div>
+                    <div class="form-check mb-2">
+                      <input class="form-check-input" type="checkbox" id="subjMakeAssignments" checked>
+                      <label class="form-check-label" for="subjMakeAssignments">Grading assignments <span class="text-secondary">(each subject with its instructor and the students who take it)</span></label>
+                    </div>
+                    <div class="row g-2" id="subjSectionInputs">
+                      <div class="col-sm-6">
+                        <label for="subjSchoolYear" class="form-label small mb-1 required">School Year</label>
+                        <input type="text" class="form-control" id="subjSchoolYear" list="subjSchoolYearList" maxlength="9" placeholder="2026-2027" autocomplete="off">
+                        <datalist id="subjSchoolYearList"></datalist>
+                        <div class="invalid-feedback"></div>
+                      </div>
+                      <div class="col-sm-6">
+                        <label for="subjYearLevel" class="form-label small mb-1 required">Year Level</label>
+                        <select class="form-select" id="subjYearLevel">
+                          <option value="">Select year level</option>
+                          <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>5th Year</option>
+                        </select>
+                        <div class="invalid-feedback"></div>
+                      </div>
+                    </div>
+                    <div class="mt-2" style="max-width:280px">
+                      <label for="subjTerm" class="form-label small mb-1">Term of the grading assignments <span class="text-secondary fw-normal">(semester)</span></label>
+                      <select class="form-select" id="subjTerm"><option value="">No term (whole school year)</option><option>1st Semester</option><option>2nd Semester</option><option>Summer</option></select>
+                    </div>
+                  </div>
+                </div>
+                <div class="import-step">
+                  <span class="wizard-num" aria-hidden="true" id="subjExistingNum">2</span>
+                  <div>
+                    <span class="fw-semibold d-block mb-1">Subject codes that already exist</span>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="subjExisting" id="subjExistingSkip" value="skip" checked>
+                      <label class="form-check-label" for="subjExistingSkip">Skip them</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="subjExisting" id="subjExistingUpdate" value="update">
+                      <label class="form-check-label" for="subjExistingUpdate">Update their name and units</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="subjImportPreview" class="d-none mt-4">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                  <h3 class="panel-title me-2">Preview</h3>
+                  <span id="subjImportSummary" class="d-flex flex-wrap gap-2"></span>
+                </div>
+                <div class="small text-secondary mb-2" id="subjImportSource"></div>
+                <div id="subjImportWarnings" class="alert alert-warning small py-2 d-none" role="status"></div>
+                <h4 class="import-subhead">Subjects</h4>
+                <div class="table-responsive import-table-wrap">
+                  <table class="table table-stack table-sm table-registry mb-0">
+                    <thead><tr><th>Subject Code</th><th>Subject Name</th><th class="num">Units</th><th>Instructor in file</th><th>Status</th></tr></thead>
+                    <tbody id="subjImportBody"></tbody>
+                  </table>
+                </div>
+                <div id="subjSectionsBlock" class="d-none">
+                  <h4 class="import-subhead">Sections</h4>
+                  <div class="table-responsive import-table-wrap import-table-short">
+                    <table class="table table-stack table-sm table-registry mb-0">
+                      <thead><tr><th>Section</th><th>School Year</th><th>Year Level</th><th>Status</th></tr></thead>
+                      <tbody id="subjSectionsBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div id="subjStudentsBlock" class="d-none">
+                  <h4 class="import-subhead">Students</h4>
+                  <div class="table-responsive import-table-wrap">
+                    <table class="table table-stack table-sm table-registry mb-0">
+                      <thead><tr><th>Student ID</th><th>Student Name</th><th>Section</th><th>Subjects in file</th><th>Status</th></tr></thead>
+                      <tbody id="subjStudentsBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div id="subjAssignBlock" class="d-none">
+                  <h4 class="import-subhead">Grading assignments</h4>
+                  <div class="table-responsive import-table-wrap import-table-short">
+                    <table class="table table-stack table-sm table-registry mb-0">
+                      <thead><tr><th>Subject</th><th>Section</th><th>Teacher</th><th class="num">Students</th><th>Status</th></tr></thead>
+                      <tbody id="subjAssignBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div id="subjTeachersBlock" class="d-none">
+                  <h4 class="import-subhead">Teachers</h4>
+                  <div class="table-responsive import-table-wrap import-table-short">
+                    <table class="table table-stack table-sm table-registry mb-0">
+                      <thead><tr><th>Teacher ID</th><th>Teacher Name</th><th>Teaches</th><th>Status</th></tr></thead>
+                      <tbody id="subjTeachersBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+              <span class="small text-secondary" id="subjImportNote">Nothing is saved until you click Import.</span>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnSubjImport" disabled><i class="bi bi-upload me-1"></i>Import subjects</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script type="module" src="../js/subjects.js"></script>
+</body>
+</html>

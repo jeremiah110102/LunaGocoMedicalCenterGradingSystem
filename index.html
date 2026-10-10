@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#14203a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <title>AcadLink Grading System</title>
+  <style>
+    /* The whole system opens inside this frame, so the address bar always shows just the main address */
+    html, body { margin: 0; height: 100%; background: #14203a; overflow: hidden; }
+    .app-frame {
+      position: fixed;
+      top: env(safe-area-inset-top, 0px);
+      right: env(safe-area-inset-right, 0px);
+      bottom: env(safe-area-inset-bottom, 0px);
+      left: env(safe-area-inset-left, 0px);
+      width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+      height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+      border: 0;
+      background: #f4f5f7;
+      /* The next page loads underneath, unseen, and replaces this one once it's drawn (no blink) */
+      z-index: 1;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .app-frame.is-active { z-index: 2; opacity: 1; pointer-events: auto; }
+    /* Circular rotating spinner while the next page loads (same as js/loading.js inside the pages) */
+    .nav-spinner {
+      position: fixed; top: 50%; left: 50%; z-index: 10;
+      display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
+      padding: 1rem 1.25rem 0.85rem; border-radius: 14px;
+      background: rgba(255, 255, 255, 0.96); border: 1px solid #e3e7ee;
+      box-shadow: 0 8px 28px rgba(20, 32, 58, 0.18);
+      color: #1f2a44; font: 600 0.85rem/1.2 "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      pointer-events: none; opacity: 0; visibility: hidden;
+      transform: translate(-50%, -50%) scale(0.92);
+      transition: opacity 180ms ease, transform 180ms ease, visibility 0s linear 180ms;
+    }
+    .nav-spinner.is-on {
+      opacity: 1; visibility: visible; transform: translate(-50%, -50%) scale(1);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .nav-ring {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: conic-gradient(from 0deg, rgba(21, 101, 216, 0) 0deg, #1565d8 110deg, #1e9be9 220deg, #2fb24c 350deg);
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4.5px));
+      mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4.5px));
+      animation: nav-spin 0.8s linear infinite;
+    }
+    @keyframes nav-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .nav-ring { animation-duration: 2.4s; } }
+  </style>
+</head>
+<body>
+  <div class="nav-spinner" id="navSpinner" role="status"><span class="nav-ring" aria-hidden="true"></span><span>Loading…</span></div>
+  <noscript><p style="color:#fff;padding:24px;font-family:sans-serif">Please turn on JavaScript to use the grading system.</p></noscript>
+  <script>
+  (function () {
+    var KEY = "gs-current-page";
+    var TITLE = "AcadLink Grading System";
+    // Multi-school: …/?school=<code> picks the school's own configuration (this tab only)
+    try {
+      var sc = (new URLSearchParams(location.search).get("school") || "").toLowerCase();
+      if (/^[a-z0-9][a-z0-9-]{0,39}$/.test(sc)) sessionStorage.setItem("gs-school-id", sc);
+    } catch (e) {}
+    var start = "pages/dashboard.html";
+    try {
+      var saved = sessionStorage.getItem(KEY);
+      // Only our own pages (no other sites)
+      if (saved && /^[\w\-./]+(\?[^#]*)?(#.*)?$/.test(saved) && saved.indexOf("..") < 0 && saved.indexOf("//") < 0) start = saved;
+    } catch (e) {}
+
+    var base = location.pathname.replace(/[^/]*$/, ""); // "/" on Vercel, "/RepoName/" on GitHub Pages
+    var spinner = document.getElementById("navSpinner");
+    var spinTimer = null;
+    var active = null;  // the page people see
+    var pending = null; // the next page, loading underneath
+
+    function makeFrame() {
+      var f = document.createElement("iframe");
+      f.className = "app-frame";
+      f.title = TITLE;
+      f.addEventListener("load", function () { onLoad(f); });
+      document.body.appendChild(f);
+      return f;
+    }
+
+    function relOf(w) {
+      var path = w.location.pathname;
+      return (path.indexOf(base) === 0 ? path.slice(base.length) : path.replace(/^\//, "")) + w.location.search + w.location.hash;
+    }
+
+    function remember() {
+      try {
+        var w = active.contentWindow;
+        var rel = relOf(w);
+        if (rel) sessionStorage.setItem(KEY, rel);
+        if (w.document.title) document.title = w.document.title;
+      } catch (e) {}
+    }
+
+    function showSpinner(on) {
+      clearTimeout(spinTimer);
+      if (on) spinTimer = setTimeout(function () { spinner.classList.add("is-on"); }, 150);
+      else spinner.classList.remove("is-on");
+    }
+
+    // Shown once its first screen is drawn: signed-in pages wait until they know who is signed in
+    function whenReady(w, done) {
+      var t0 = Date.now();
+      var called = false;
+      function finish() { if (!called) { called = true; done(); } }
+      (function check() {
+        var ok = true;
+        try {
+          var d = w.document;
+          ok = d.readyState === "complete" && (!d.querySelector(".app-content") || d.documentElement.hasAttribute("data-role"));
+        } catch (e) {}
+        if (!ok && Date.now() - t0 < 4000) return setTimeout(check, 40);
+        try { w.requestAnimationFrame(function () { w.requestAnimationFrame(finish); }); } catch (e) {}
+        setTimeout(finish, 400); // in case drawing is paused (tab in the background)
+      })();
+    }
+
+    function swap(f) {
+      if (f === active || !f.parentNode) return;
+      var old = active;
+      f.classList.add("is-active");
+      active = f;
+      if (pending === f) pending = null;
+      if (old) old.remove(); // removed, not navigated: no second "leave page?" question
+      showSpinner(false);
+      remember();
+      try { f.contentWindow.focus(); } catch (e) {}
+    }
+
+    function onLoad(f) {
+      var w;
+      try {
+        w = f.contentWindow;
+        if (w.location.href === "about:blank") return;
+      } catch (e) { return; }
+      hook(f, w);
+      if (f === active) { remember(); showSpinner(false); return; }
+      whenReady(w, function () { swap(f); });
+    }
+
+    // Unsaved changes (e.g. grades being entered): the page's own beforeunload handler says so
+    function hasUnsaved() {
+      try {
+        var w = active.contentWindow;
+        var ev = new w.Event("beforeunload", { cancelable: true });
+        w.dispatchEvent(ev);
+        return ev.defaultPrevented;
+      } catch (e) {}
+      return false;
+    }
+    // Links inside the app: ask first, as when leaving a page
+    function mayLeave() {
+      if (!hasUnsaved()) return true;
+      try { return active.contentWindow.confirm("Leave this page? Changes you made may not be saved."); } catch (e) {}
+      return true;
+    }
+    // Browser Refresh, closing the tab, typing another address: the browser asks
+    // (not every browser asks for a page inside a frame, so this window asks for it)
+    window.addEventListener("beforeunload", function (e) {
+      if (!hasUnsaved()) return;
+      e.preventDefault();
+      e.returnValue = "";
+    });
+
+    function go(href, push) {
+      if (!pending) pending = makeFrame();
+      if (push) {
+        try { history.pushState({ gsPage: href }, ""); } catch (e) {}
+      }
+      showSpinner(true);
+      try { pending.contentWindow.location.replace(href); } catch (e) { pending.src = href; }
+    }
+
+    // Links between pages load the next page underneath instead of reloading this one
+    function hook(f, w) {
+      try {
+        if (w.__gsHooked) return;
+        w.__gsHooked = true;
+        w.document.addEventListener("click", function (e) {
+          if (f !== active || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          var a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+          if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download") || a.hasAttribute("data-bs-toggle")) return;
+          var url;
+          try { url = new URL(a.getAttribute("href"), w.location.href); } catch (x) { return; }
+          if (url.origin !== location.origin || !/\.html$/.test(url.pathname)) return;
+          if (url.pathname === w.location.pathname && url.search === w.location.search) return; // same page
+          e.preventDefault();
+          if (mayLeave()) go(url.href, true);
+        });
+      } catch (e) {}
+    }
+
+    // Back / Forward buttons
+    window.addEventListener("popstate", function (e) {
+      var href = e.state && e.state.gsPage;
+      if (!href) return;
+      if (mayLeave()) go(href, false);
+      else try { history.pushState({ gsPage: active.contentWindow.location.href }, ""); } catch (x) {}
+    });
+
+    // Keep the tab title in step when a page changes it later
+    setInterval(function () {
+      try { var t = active.contentWindow.document.title; if (t && t !== document.title) document.title = t; } catch (e) {}
+    }, 1000);
+
+    active = makeFrame();
+    active.classList.add("is-active");
+    active.src = start;
+    try { history.replaceState({ gsPage: new URL(start, location.href).href }, ""); } catch (e) {}
+  })();
+  </script>
+</body>
+</html>

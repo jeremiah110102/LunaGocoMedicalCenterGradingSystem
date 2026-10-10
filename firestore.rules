@@ -1,0 +1,334 @@
+rules_version = '2';
+
+// ==========================================================
+// College Grading System — role-based security rules
+// Paste into Firebase Console > Firestore Database > Rules > Publish
+//
+// Roles (users/{uid}.role):
+//   admin      everything, including user accounts
+//   registrar  academic setup, grading assignments, all grades
+//   teacher    reads setup data; enters grades for their own classes as drafts and may change
+//              them until submitted (or the term deadline / downtime / end of the school year).
+//              Submitted grades change only through an approved change request.
+// Tag (users/{uid}.canApprove == true):
+//   approver   receives grade change requests and can accept/decline them
+// ==========================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function signedIn() { return request.auth != null; }
+    function userPath() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function hasProfile() { return signedIn() && exists(userPath()); }
+    function me() { return get(userPath()).data; }
+    function active() { return hasProfile() && me().active == true; }
+    function isAdmin() { return active() && me().role == 'admin'; }
+    function isStaff() { return active() && me().role in ['admin', 'registrar']; }
+    function isTeacher() { return active() && me().role == 'teacher'; }
+    function isApprover() { return active() && me().get('canApprove', false) == true; }
+    function myTeacher() { return me().teacherDocId; }
+    function setupPath() { return /databases/$(database)/documents/meta/setup; }
+    function firstSetup() { return !exists(setupPath()) && existsAfter(setupPath()); }
+    // The school's grading scale (Setup and options → settings/options):
+    //   percent 0–100 (75 passes) · point1 1.00 best…3.00 pass, 4.00 conditional, 5.00 fail
+    //   point5 the reverse: 5.00 best…3.00 pass, 2.00 conditional, 1.00 fail
+    function optionsPath() { return /databases/$(database)/documents/settings/options; }
+    function option(key, fallback) {
+      return exists(optionsPath()) ? get(optionsPath()).data.get(key, fallback) : fallback;
+    }
+    function isGrade(n) {
+      let scale = option('gradingScale', 'percent');
+      let cond = option('allowConditional', true) == true;
+      return n is number && (
+        (scale == 'point1' && (n in [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 5] || (cond && n == 4)))
+        || (scale == 'point5' && (n in [5, 4.75, 4.5, 4.25, 4, 3.75, 3.5, 3.25, 3, 1] || (cond && n == 2)))
+        || (scale != 'point1' && scale != 'point5' && n >= 0 && n <= 100));
+    }
+    // Teacher downtime (School settings): teachers can't add grades or change requests
+    function downtimePath() { return /databases/$(database)/documents/settings/downtime; }
+    function teachersLocked() {
+      return exists(downtimePath())
+        && get(downtimePath()).data.get('teachersLocked', false) == true
+        && (get(downtimePath()).data.get('until', null) == null
+            || request.time < get(downtimePath()).data.until);
+    }
+    // A remark instead of a number: INC (Incomplete) or DRP (Dropped); finalGrade is then null
+    function isMark(grade, remarks) { return grade == null && remarks in ['Incomplete', 'Dropped']; }
+    // Term deadline (Setup and options → Term deadlines): after it, teachers can't add that term's grades
+    function termOpen(a) {
+      let deadline = option('termDeadlines', {}).get(a.get('term', ''), null);
+      return deadline == null || request.time < deadline;
+    }
+    function remarksOf(n) {
+      let scale = option('gradingScale', 'percent');
+      return scale == 'point1' ? (n == 4 ? 'Conditional' : (n <= 3 ? 'Passed' : 'Failed'))
+        : scale == 'point5' ? (n == 2 ? 'Conditional' : (n >= 3 ? 'Passed' : 'Failed'))
+        : (n >= 75 ? 'Passed' : 'Failed');
+    }
+
+    // ---------- first-run marker ----------
+    match /meta/{id} {
+      allow list: if isAdmin();          // backup
+    }
+    match /meta/setup {
+      allow get: if true;
+      allow create: if signedIn() && !exists(setupPath())
+                    && request.resource.data.adminUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ---------- school settings and email keys ----------
+    match /settings/{id} {
+      // settings/school is public (sign-in page); settings/email (EmailJS keys) is staff-only;
+      // settings/sheets (Google Sheets sync key) and anything else is administrators only
+      // settings/connection = which database the school uses (every device reads it, even before sign-in)
+      allow get: if id == 'school' || id == 'connection' || ((id == 'security' || id == 'downtime' || id == 'options') && signedIn()) || (id == 'email' && isStaff()) || isAdmin();
+      allow list: if isAdmin();          // backup
+      allow write: if isAdmin();
+    }
+
+    // ---------- the school's database choice (School settings → Database) ----------
+    // Every device reads it (before sign-in). Only administrators change it: an admin profile
+    // here, or one of the administrator accounts listed in adminUids (needed when the
+    // records are in a Google Sheet, where these rules can't see the roles).
+    function connectionPath() { return /databases/$(database)/documents/settings/connection; }
+    function connectionAdmin() {
+      return signedIn() && (isAdmin()
+        || (exists(connectionPath()) && request.auth.uid in get(connectionPath()).data.get('adminUids', [])));
+    }
+    match /settings/connection {
+      allow get: if true;
+      // First time: recorded automatically by the first administrator, who lists themself
+      allow create: if signedIn() && request.auth.uid in request.resource.data.adminUids;
+      allow update: if connectionAdmin() && request.auth.uid in request.resource.data.adminUids;
+      allow delete: if false;
+    }
+    match /connectionHistory/{id} {
+      allow read: if connectionAdmin();
+      allow create: if signedIn() && (isAdmin()
+        || request.auth.uid in getAfter(connectionPath()).data.get('adminUids', []));
+      allow update, delete: if false;
+    }
+
+    // ---------- username -> sign-in lookup ----------
+    match /usernames/{username} {
+      allow get: if true;
+      allow list: if isAdmin();          // backup only; nobody else can list usernames
+      allow create: if isAdmin()
+                    || (signedIn() && firstSetup() && request.resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------- user profiles & roles ----------
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // Teachers may list approvers (to notify them); only a canApprove == true query is allowed
+      allow list: if isAdmin() || (active() && resource.data.canApprove == true);
+      allow create: if isAdmin()
+                    || (signedIn() && request.auth.uid == uid && firstSetup()
+                        && request.resource.data.role == 'admin'
+                        && request.resource.data.active == true);
+      // Everyone may record their own active device (one-device sign-in), their "last active"
+      // time (who is online) and clear their own "must change password" mark; nothing else
+      allow update: if isAdmin()
+                    || (signedIn() && request.auth.uid == uid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['activeSession', 'mustChangePassword', 'updatedAt', 'lastSeen'])
+                        // the mark may stay as it is, or be cleared, but never switched on
+                        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['mustChangePassword'])
+                            || request.resource.data.mustChangePassword == false));
+      allow delete: if isAdmin();
+    }
+
+    // ---------- academic setup ----------
+    match /subjects/{id}           { allow read: if active(); allow write: if isStaff(); }
+    match /teachers/{id}           { allow read: if active(); allow write: if isStaff(); }
+    match /sections/{id}           { allow read: if active(); allow write: if isStaff(); }
+    match /students/{id}           { allow read: if active(); allow write: if isStaff(); }
+    match /gradingAssignments/{id} { allow read: if active(); allow write: if isStaff(); }
+    // Curriculum: each program's subjects per year level and term (Curriculum page)
+    match /curriculum/{id}         { allow read: if active(); allow write: if isStaff(); }
+
+    // ---------- grades ----------
+    match /grades/{gradeId} {
+      function assignment(id) {
+        return get(/databases/$(database)/documents/gradingAssignments/$(id)).data;
+      }
+      function teacherOwnsNew() {
+        return isTeacher()
+          && request.resource.data.teacherDocId == myTeacher()
+          && assignment(request.resource.data.assignmentId).teacherDocId == myTeacher()
+          && request.resource.data.studentId in assignment(request.resource.data.assignmentId).studentIds
+          && termOpen(assignment(request.resource.data.assignmentId))
+          && matchesClass(assignment(request.resource.data.assignmentId))
+          && request.resource.data.get('draft', false) is bool;
+      }
+      // Draft, then Submit: a teacher may change or clear their own grade while it is a draft
+      // (saved, not submitted yet), until the term deadline or downtime. Submitted grades,
+      // and grades saved before drafts existed (no draft field), stay locked.
+      function teacherDraft() {
+        return isTeacher() && !teachersLocked()
+          && resource.data.get('draft', false) == true
+          && resource.data.teacherDocId == myTeacher()
+          && assignment(resource.data.assignmentId).teacherDocId == myTeacher()
+          && termOpen(assignment(resource.data.assignmentId))
+          && inSchoolYear(assignment(resource.data.assignmentId));
+      }
+      // A draft belongs to its school year: from Aug 1 of the year it ends ("2026-2027" → Aug 1, 2027)
+      // it is locked for good, even if the same term's deadline is set again for a later school
+      // year. School years written another way aren't limited by this.
+      function inSchoolYear(a) {
+        let p = string(a.get('schoolYear', '')).split('-');
+        return p.size() != 2 || !p[1].matches('^[0-9]{4}$') || request.time < timestamp.date(int(p[1]), 8, 1);
+      }
+      // The changed draft still belongs to the same student and class
+      function draftStaysInClass() {
+        let d = request.resource.data;
+        return d.teacherDocId == myTeacher()
+          && d.assignmentId == resource.data.assignmentId && d.studentId == resource.data.studentId
+          && d.studentId in assignment(d.assignmentId).studentIds
+          && matchesClass(assignment(d.assignmentId))
+          && d.get('draft', false) is bool;
+      }
+      // A teacher's grade must belong to its class exactly: one record per student and class
+      // (id = assignmentId_studentId), with the class's subject, units, school year, term and
+      // section. Final grades / GWA use these copies, so they can't be made up.
+      function matchesClass(a) {
+        let d = request.resource.data;
+        return gradeId == d.assignmentId + '_' + d.studentId
+          && d.get('subjectId', null) == a.get('subjectId', null)
+          && d.get('units', null) == a.get('units', null)
+          && d.get('schoolYear', null) == a.get('schoolYear', null)
+          && d.get('term', '') == a.get('term', '')
+          && d.get('sectionId', null) == a.get('sectionId', null);
+      }
+      function validGrade() {
+        let d = request.resource.data;
+        return isMark(d.get('finalGrade', null), d.get('remarks', ''))
+          || (isGrade(d.get('finalGrade', null)) && d.remarks == remarksOf(d.finalGrade));
+      }
+      // An approver's update must match a request approved in the same write
+      function approvedChange() {
+        let req = getAfter(/databases/$(database)/documents/gradeChangeRequests/$(request.resource.data.lastChangeRequestId)).data;
+        return req.status == 'approved'
+          && req.gradeId == gradeId
+          && req.newGrade == request.resource.data.get('finalGrade', null)
+          && req.get('newRemarks', '') == request.resource.data.get('remarks', '')
+          && req.decidedBy == request.auth.uid;
+      }
+
+      allow read: if isStaff() || (isTeacher() && resource.data.teacherDocId == myTeacher());
+      // Teachers create a grade (as a draft); after it is submitted it is locked
+      allow create: if (isStaff() || (teacherOwnsNew() && !teachersLocked())) && validGrade();
+      // An approver changes only the grade itself (the class, units and student stay as they are)
+      allow update: if isStaff()
+        || (teacherDraft() && draftStaysInClass() && validGrade())
+        || (isApprover() && validGrade() && approvedChange()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['finalGrade', 'remarks', 'lastChangeRequestId', 'lastChangedByName', 'updatedAt']));
+      allow delete: if isStaff() || teacherDraft();
+    }
+
+    // ---------- grade change requests ----------
+    match /gradeChangeRequests/{reqId} {
+      function grade(id) { return get(/databases/$(database)/documents/grades/$(id)).data; }
+
+      allow read: if isStaff() || isApprover()
+                  || (isTeacher() && resource.data.teacherDocId == myTeacher());
+
+      allow create: if isAdmin()          // restore from backup
+        || (isTeacher()
+        && !teachersLocked()
+        && request.resource.data.teacherDocId == myTeacher()
+        && grade(request.resource.data.gradeId).teacherDocId == myTeacher()
+        && request.resource.data.requestedBy == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && (isMark(request.resource.data.get('newGrade', null), request.resource.data.get('newRemarks', ''))
+            || (isGrade(request.resource.data.get('newGrade', null))
+                && request.resource.data.newRemarks == remarksOf(request.resource.data.newGrade)))
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() >= 10);
+
+      allow update: if
+        // An approver decides a pending request (never their own)
+        (isApprover()
+          && resource.data.status == 'pending'
+          && resource.data.requestedBy != request.auth.uid
+          && request.resource.data.status in ['approved', 'declined']
+          && request.resource.data.decidedBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'decidedBy', 'decidedByName', 'decidedAt', 'decisionNote']))
+        ||
+        // The requester withdraws a pending request
+        (active()
+          && resource.data.requestedBy == request.auth.uid
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'cancelled'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt']));
+
+      allow delete: if isStaff();
+      // Restore from backup (Merge mode overwrites existing requests)
+      allow update: if isAdmin();
+    }
+
+    // ---------- class list requests (teacher asks; a registrar or admin decides) ----------
+    // A teacher keeps the lines of their own class in a draft, submits it, and may withdraw it
+    // until the registrar decides the first line. Only staff decide, and only staff change classes.
+    match /rosterRequests/{reqId} {
+      function classOf(id) { return get(/databases/$(database)/documents/gradingAssignments/$(id)).data; }
+      function itemsOk(d) { return d.items is list && d.items.size() <= 50; }
+      function ownRequest() {
+        return isTeacher() && !teachersLocked()
+          && resource.data.teacherDocId == myTeacher()
+          && resource.data.requestedBy == request.auth.uid;
+      }
+
+      allow read: if isStaff() || (isTeacher() && resource.data.teacherDocId == myTeacher());
+
+      allow create: if isAdmin()          // restore from backup
+        || (isTeacher() && !teachersLocked()
+          && request.resource.data.teacherDocId == myTeacher()
+          && classOf(request.resource.data.assignmentId).teacherDocId == myTeacher()
+          && request.resource.data.requestedBy == request.auth.uid
+          && request.resource.data.status in ['draft', 'submitted']
+          && request.resource.data.reviewStarted == false
+          && itemsOk(request.resource.data));
+
+      allow update: if isStaff()
+        || (ownRequest()
+          && itemsOk(request.resource.data)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['assignmentId', 'teacherDocId', 'requestedBy', 'reviewStarted'])
+          && ((resource.data.status == 'draft' && request.resource.data.status in ['draft', 'submitted', 'withdrawn'])
+            || (resource.data.status == 'submitted' && request.resource.data.status == 'withdrawn'
+              && resource.data.reviewStarted == false
+              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['items']))));
+
+      allow delete: if isStaff() || (ownRequest() && resource.data.status == 'draft');
+    }
+
+    // ---------- audit trail (who added / edited / deleted what) ----------
+    // Written by the website with each change, only in the signed-in person's own name;
+    // only administrators can read it or delete old entries; nobody can edit an entry.
+    match /auditLog/{id} {
+      allow read: if isAdmin();
+      allow create: if signedIn()
+                    && request.resource.data.byUid == request.auth.uid
+                    && request.resource.data.action in ['create', 'update', 'delete', 'save']
+                    && request.resource.data.at == request.time;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // ---------- notifications ----------
+    match /notifications/{id} {
+      allow read: if signedIn() && resource.data.toUid == request.auth.uid;
+      allow create: if active()
+                    && request.resource.data.fromUid == request.auth.uid
+                    && request.resource.data.read == false;
+      allow update: if signedIn() && resource.data.toUid == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+      allow delete: if signedIn() && resource.data.toUid == request.auth.uid;
+    }
+  }
+}
