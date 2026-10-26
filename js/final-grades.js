@@ -537,10 +537,18 @@ function printReports(list) {
     <link rel="stylesheet" href="${css("../css/style.css")}">
     <style>
       /* Always half of an A4 sheet, landscape: A5 landscape (210 × 148 mm), one report per page */
-      @page{size:A5 landscape;margin:6mm}
+   @page{size:A4 portrait;margin:6mm 15mm}
       html{font-size:9.5px}
       body{background:#fff;padding:0;margin:0}
-      .class-record{box-shadow:none;border:0;margin:0}
+     .class-record {
+    box-shadow: none !important;
+    border: 0 !important;
+    margin: 0 !important;
+    padding-left: 12mm !important;
+    padding-right: 12mm !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+}
       .record-letterhead{padding:0 0 .3rem}
       .letterhead-logo{width:34px;height:34px}
       .record-head{padding:.3rem 0 .4rem}
